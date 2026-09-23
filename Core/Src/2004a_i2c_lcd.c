@@ -7,6 +7,7 @@
 
 #include <2004a_i2c_lcd.h>
 #include "stm32f0xx_hal.h"
+#include "tim.h"
 
 HAL_StatusTypeDef WriteInstNibble(I2C_HandleTypeDef i2cdev, uint32_t dev_addr, uint8_t* pdata)
 {
@@ -20,7 +21,7 @@ HAL_StatusTypeDef WriteInstNibble(I2C_HandleTypeDef i2cdev, uint32_t dev_addr, u
 	status = HAL_I2C_Master_Transmit(&i2cdev, dev_addr, &tmp, INST_NIBBLE_SZ, FUNC_TIMEOUT);
 	tmp = (*pdata) | (BIT_INST | BIT_WRITE | BIT_NOENABLE | BACKLIGHT_OFF);
 	status = HAL_I2C_Master_Transmit(&i2cdev, dev_addr, &tmp, INST_NIBBLE_SZ, FUNC_TIMEOUT);
-	HAL_Delay(1);
+	delay_us(INST_EXEC_DELAY);
 
 	return status;
 }
@@ -56,7 +57,7 @@ HAL_StatusTypeDef WriteDataNibble(I2C_HandleTypeDef i2cdev, uint32_t dev_addr, u
 	status = HAL_I2C_Master_Transmit(&i2cdev, dev_addr, &tmp, DATA_NIBBLE_SZ, FUNC_TIMEOUT);
 	tmp = *pdata | (BIT_DATA | BIT_WRITE | BIT_NOENABLE | BACKLIGHT_ON);
 	status = HAL_I2C_Master_Transmit(&i2cdev, dev_addr, &tmp, DATA_NIBBLE_SZ, FUNC_TIMEOUT);
-	HAL_Delay(1);
+	delay_us(INST_EXEC_DELAY);
 
 	return status;
 }

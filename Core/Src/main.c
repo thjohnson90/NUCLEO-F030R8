@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "i2c.h"
+#include "tim.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -101,8 +102,13 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_I2C1_Init();
-
+  MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
+
+  // start timer
+  HAL_TIM_Base_Start(&htim6);
+
+  // introductory message
   sz = strlen(msg);
   ret = HAL_UART_Transmit(&huart2, (const uint8_t*) msg, sz, FUNC_TIMEOUT);
   if (HAL_OK != ret) {
@@ -118,7 +124,7 @@ int main(void)
 		  uart_msg_len = strlen(uart_msg);
 		  HAL_UART_Transmit(&huart2, (const uint8_t*) uart_msg, uart_msg_len, FUNC_TIMEOUT);
 
-		  if ((idx << 1) == LCD_DEVICE_ADDR) {
+		  if (idx == LCD_DEVICE_ADDR) {
 			  sprintf(uart_msg, "LCD Found at Address 0x%x\r\n", idx);
 			  uart_msg_len = strlen(uart_msg);
 			  HAL_UART_Transmit(&huart2, (const uint8_t*) uart_msg, uart_msg_len, FUNC_TIMEOUT);
@@ -137,6 +143,8 @@ int main(void)
 	  lcd_msg_len = strlen(lcd_msg);
 	  WriteData(hi2c1, lcd_device_addr, (uint8_t*) lcd_msg, lcd_msg_len);
   }
+
+  delay_us(100);
 
   /* USER CODE END 2 */
 

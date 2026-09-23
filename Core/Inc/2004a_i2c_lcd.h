@@ -13,8 +13,8 @@
 // I2C Slave Device Address
 #define MAX_I2C_DEVICES		(128)
 #define MAX_I2C_RETRY       (100)
-#define LCD_DEVICE_ADDR		(0x27 << 1)
-//#define LCD_DEVICE_ADDR		(0x3F << 1)
+#define LCD_DEVICE_ADDR		(0x27)
+//#define LCD_DEVICE_ADDR		(0x3F)
 
 // Command Definitions
 #define CLR_DISP			0x01
@@ -89,6 +89,7 @@ HAL_StatusTypeDef WriteData(I2C_HandleTypeDef i2cdev, uint32_t dev_addr, uint8_t
 void              LCD_Init(uint16_t addr);
 
 #define FUNC_TIMEOUT		5	// ms
+#define INST_EXEC_DELAY     50  // us
 #define NIBBLE_MASK			0xF0
 #define LO_NIBBLE_SHIFT		4
 
