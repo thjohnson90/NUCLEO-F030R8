@@ -34,11 +34,23 @@ extern "C" {
 
 extern TIM_HandleTypeDef htim6;
 
-/* USER CODE BEGIN Private defines */
+extern TIM_HandleTypeDef htim14;
 
+extern TIM_HandleTypeDef htim15;
+
+/* USER CODE BEGIN Private defines */
+//#define PW_MEASURE_TEST
+#ifdef PW_MEASURE_TEST
+//#define LOG_IN_IRQ_CALLBACK
+#define LOG_IN_MAIN_LOOP
+#endif
 /* USER CODE END Private defines */
 
 void MX_TIM6_Init(void);
+void MX_TIM14_Init(void);
+void MX_TIM15_Init(void);
+
+void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 
 /* USER CODE BEGIN Prototypes */
 void delay_us(uint16_t us);

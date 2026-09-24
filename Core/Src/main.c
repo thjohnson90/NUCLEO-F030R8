@@ -61,6 +61,9 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+extern uint32_t delta;
+extern uint32_t rise_ts;
+extern uint32_t fall_ts;
 
 /* USER CODE END 0 */
 
@@ -103,10 +106,17 @@ int main(void)
   MX_USART2_UART_Init();
   MX_I2C1_Init();
   MX_TIM6_Init();
+  MX_TIM14_Init();
+  MX_TIM15_Init();
   /* USER CODE BEGIN 2 */
 
   // start timer
   HAL_TIM_Base_Start(&htim6);
+  HAL_TIM_IC_Start_IT(&htim15, TIM_CHANNEL_1);
+  HAL_Delay(5);
+#ifdef PW_MEASURE_TEST
+  HAL_TIM_PWM_Start(&htim14, TIM_CHANNEL_1);
+#endif
 
   // introductory message
   sz = strlen(msg);
@@ -155,7 +165,18 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	HAL_Delay(1000);
+#ifdef PW_MEASURE_TEST
+#ifdef LOG_IN_MAIN_LOOP
+	char uart_msg[128] = {0};
+	uint32_t uart_msg_len = 0;
+
+	sprintf(uart_msg, "Pulse Width %05u:%05u:%05u\r\n", (unsigned) rise_ts, (unsigned) fall_ts, (unsigned) delta);
+	uart_msg_len = strlen(uart_msg);
+	HAL_UART_Transmit(&huart2, (const uint8_t*) uart_msg, uart_msg_len, HAL_TIMEOUT);
+
+	HAL_Delay(200);
+#endif
+#endif
 
   }
   /* USER CODE END 3 */
