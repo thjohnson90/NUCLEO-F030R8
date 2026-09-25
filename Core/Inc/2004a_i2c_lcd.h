@@ -18,7 +18,7 @@
 
 // Command Definitions
 #define CLR_DISP			0x01
-#define HOME				0x02
+#define HOME_DISP			0x02
 #define ENTRY_MODE			0x04
 #define DISP_ON_OFF			0x08
 #define CUROR_OR_DISP_SHIFT	0x10
@@ -56,37 +56,43 @@
 #define BIT_5X8FONT				(0x0)
 
 // CGRAM_ADDR
-#define CGRAM_ADDR_MASK		(0x3F)
+#define CGRAM_ADDR_MASK		    (0x3F)
 
 // DDRAM_ADDR
-#define DDRAM_ADDR_MASK		(0x7F)
+#define DDRAM_ADDR_MASK		    (0x7F)
 
 // Nibble Masks
-#define UPPER_NIBBLE_MASK	(0xF0)
-#define LOWER_NIBBLE_MASK	(0x0F)
+#define UPPER_NIBBLE_MASK	    (0xF0)
+#define LOWER_NIBBLE_MASK	    (0x0F)
 
 // Command Bits
-#define BIT_ENABLE			(0x1 << 2)
-#define BIT_NOENABLE		(0x0)
-#define BIT_READ			(0x1 << 1)
-#define BIT_WRITE			(0x0)
-#define BIT_DATA			(0x1)
-#define BIT_INST			(0x0)
+#define BIT_ENABLE			    (0x1 << 2)
+#define BIT_NOENABLE		    (0x0)
+#define BIT_READ			    (0x1 << 1)
+#define BIT_WRITE			    (0x0)
+#define BIT_DATA			    (0x1)
+#define BIT_INST			    (0x0)
 
-#define INST_NIBBLE_SZ		(0x1)
-#define DATA_NIBBLE_SZ		(0x1)
+#define INST_NIBBLE_SZ		    (0x1)
+#define DATA_NIBBLE_SZ		    (0x1)
 
-#define BACKLIGHT_ON		(0x08)
-#define BACKLIGHT_OFF		(0x0)
+#define BACKLIGHT_ON		    (0x08)
+#define BACKLIGHT_OFF		    (0x0)
 
-#define MAX_LCD_MSG_LEN     21
+#define MAX_LCD_MSG_LEN         21
+
+#define LCD_DISP_LINE0_START    0
+#define LCD_DISP_LINE1_START    41
+#define LCD_DISP_LINE2_START    20
+#define LCD_DISP_LINE3_START    84
 
 // Function Prototypes
-HAL_StatusTypeDef WriteInstNibble(I2C_HandleTypeDef i2cdev, uint32_t dev_addr, uint8_t* pdata);
-HAL_StatusTypeDef WriteInst(I2C_HandleTypeDef i2cdev, uint32_t dev_addr, uint8_t* pdata);
-HAL_StatusTypeDef WriteDataNibble(I2C_HandleTypeDef i2cdev, uint32_t dev_addr, uint8_t* pdata);
-HAL_StatusTypeDef WriteData(I2C_HandleTypeDef i2cdev, uint32_t dev_addr, uint8_t* pdata, uint32_t sz);
-void              LCD_Init(uint16_t addr);
+HAL_StatusTypeDef LCD_WriteInst(I2C_HandleTypeDef* i2cdev, uint32_t dev_addr, uint8_t* pdata);
+HAL_StatusTypeDef LCD_WriteData(I2C_HandleTypeDef* i2cdev, uint32_t dev_addr, uint8_t* pdata, uint32_t sz);
+void              LCD_Init(I2C_HandleTypeDef* i2cdev, uint16_t addr);
+void              LCD_ClearDisplay(I2C_HandleTypeDef* i2cdev, uint16_t addr);
+void              LCD_HomeDisplay(I2C_HandleTypeDef* i2cdev, uint16_t addr);
+void              LCD_SetDDRAMAddr(I2C_HandleTypeDef* i2cdev, uint16_t addr, uint8_t ddram_addr);
 
 #define FUNC_TIMEOUT		5	// ms
 #define INST_EXEC_DELAY     50  // us

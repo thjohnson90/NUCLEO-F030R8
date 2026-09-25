@@ -151,15 +151,15 @@ int main(void)
 
   if (idx != MAX_I2C_DEVICES) {
 	  // Initialize LCD Display
-	  LCD_Init(lcd_device_addr);
+	  LCD_Init(&hi2c1, lcd_device_addr);
 
 	  // write data
 	  sprintf(lcd_msg, "Hello!");
 	  lcd_msg_len = strlen(lcd_msg);
-	  WriteData(hi2c1, lcd_device_addr, (uint8_t*) lcd_msg, lcd_msg_len);
+	  LCD_WriteData(&hi2c1, lcd_device_addr, (uint8_t*) lcd_msg, lcd_msg_len);		// line0
   }
 
-  delay_us(100);
+//  delay_us(100);
 
   /* USER CODE END 2 */
 
@@ -171,21 +171,42 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-	HAL_Delay(3000);
+	HAL_Delay(10000);
 	ReadDHT11(&dht11);
+	LCD_ClearDisplay(&hi2c1, lcd_device_addr);
 
 	float rh, temp_C, temp_F;
 	rh = ((float) dht11.rh_int) + ((float) dht11.rh_dec) / 1000.0f;
 	temp_C = ((float) dht11.temp_int) + ((float) dht11.temp_dec) / 1000.0f;
 	temp_F = (temp_C * 1.8f) + 32.0f;
 
-	sprintf(uart_msg, "Relative Humidity: %02.2f%%\r\n", rh);
+	sprintf(uart_msg, "Rel Hum: %02.1f%%\r\n", rh);
 	uart_msg_len = strlen(uart_msg);
 	HAL_UART_Transmit(&huart2, (const uint8_t*) uart_msg, uart_msg_len, HAL_TIMEOUT);
 
-	sprintf(uart_msg, "Temperature: %02.2f C, %02.2f F\r\n\r\n", temp_C, temp_F);
+	sprintf(lcd_msg, "Rel Humidity: %02.1f%%", rh);
+	lcd_msg_len = strlen(lcd_msg);
+	LCD_WriteData(&hi2c1, lcd_device_addr, (uint8_t*) lcd_msg, lcd_msg_len);
+
+	sprintf(uart_msg, "Temp: %02.2f C, %02.2f F\r\n\r\n", temp_C, temp_F);
 	uart_msg_len = strlen(uart_msg);
 	HAL_UART_Transmit(&huart2, (const uint8_t*) uart_msg, uart_msg_len, HAL_TIMEOUT);
+
+	LCD_SetDDRAMAddr(&hi2c1, lcd_device_addr, LCD_DISP_LINE1_START);
+	sprintf(lcd_msg, "Temperature:");
+	lcd_msg_len = strlen(lcd_msg);
+	LCD_WriteData(&hi2c1, lcd_device_addr, (uint8_t*) lcd_msg, lcd_msg_len);
+
+	LCD_SetDDRAMAddr(&hi2c1, lcd_device_addr, LCD_DISP_LINE2_START);
+	sprintf(lcd_msg, "%02.1f %cC", temp_C, 0xDF);
+	lcd_msg_len = strlen(lcd_msg);
+	LCD_WriteData(&hi2c1, lcd_device_addr, (uint8_t*) lcd_msg, lcd_msg_len);
+
+	LCD_SetDDRAMAddr(&hi2c1, lcd_device_addr, LCD_DISP_LINE3_START);
+	sprintf(lcd_msg, "%02.1f %cF", temp_F, 0xDF);
+	lcd_msg_len = strlen(lcd_msg);
+	LCD_WriteData(&hi2c1, lcd_device_addr, (uint8_t*) lcd_msg, lcd_msg_len);
+
 
 #ifdef PW_MEASURE_TEST
 #ifdef LOG_IN_MAIN_LOOP
