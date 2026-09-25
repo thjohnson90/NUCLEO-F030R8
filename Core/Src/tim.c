@@ -26,9 +26,15 @@
 #include "usart.h"
 
 static uint32_t rise_ts_captured = 0;
-uint32_t rise_ts          = 0;
-uint32_t fall_ts          = 0;
-uint32_t delta            = 0;
+#ifdef LOG_IN_MAIN_LOOP
+uint32_t rise_ts            = 0;
+uint32_t fall_ts            = 0;
+uint32_t detected_pw        = 0;
+#else
+static uint32_t rise_ts     = 0;
+static uint32_t fall_ts     = 0;
+static uint32_t detected_pw = 0;
+#endif
 
 /* USER CODE END 0 */
 
@@ -48,7 +54,7 @@ void MX_TIM6_Init(void)
 
   /* USER CODE END TIM6_Init 1 */
   htim6.Instance = TIM6;
-  htim6.Init.Prescaler = 48 - 1;
+  htim6.Init.Prescaler = 3 - 1;
   htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim6.Init.Period = 65535;
   htim6.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -311,17 +317,18 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef* htim)
 			fall_ts = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
 
 			if (fall_ts >= rise_ts) {
-				delta = fall_ts - rise_ts;
+				detected_pw = fall_ts - rise_ts;
 			} else {
-				delta = (65535 - rise_ts) + fall_ts;
+				detected_pw = (65535 - rise_ts) + fall_ts;
 			}
 			rise_ts_captured = 0;
+
 #ifdef PW_MEASURE_TEST
 #ifdef LOG_IN_IRQ_CALLBACK
 			char uart_msg[128] = {0};
 			uint32_t uart_msg_len = 0;
 
-			sprintf(uart_msg, "HAL_TIM_IC_CaptureCallback %05u:%05u:%05u\r\n", (unsigned) rise_ts, (unsigned) fall_ts, (unsigned) delta);
+			sprintf(uart_msg, "HAL_TIM_IC_CaptureCallback %05u:%05u:%05u\r\n", (unsigned) rise_ts, (unsigned) fall_ts, (unsigned) detected_pw);
 			uart_msg_len = strlen(uart_msg);
 			HAL_UART_Transmit(&huart2, (const uint8_t*) uart_msg, uart_msg_len, HAL_TIMEOUT);
 #endif

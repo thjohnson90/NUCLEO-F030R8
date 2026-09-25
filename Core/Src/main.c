@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "2004a_i2c_lcd.h"
+#include "dht11.h"
 
 /* USER CODE END Includes */
 
@@ -61,9 +62,11 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-extern uint32_t delta;
+#ifdef LOG_IN_MAIN_LOOP
+extern uint32_t detected_pw;
 extern uint32_t rise_ts;
 extern uint32_t fall_ts;
+#endif
 
 /* USER CODE END 0 */
 
@@ -83,6 +86,7 @@ int main(void)
 	uint32_t          uart_msg_len               = 0;
 	uint16_t          lcd_device_addr            = 0;
 	uint16_t          idx                        = 0;
+	DHT11_Device      dht11                      = {0};
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -117,6 +121,7 @@ int main(void)
 #ifdef PW_MEASURE_TEST
   HAL_TIM_PWM_Start(&htim14, TIM_CHANNEL_1);
 #endif
+  DHT11_Init(&dht11, &htim6);
 
   // introductory message
   sz = strlen(msg);
@@ -165,16 +170,28 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-#ifdef PW_MEASURE_TEST
-#ifdef LOG_IN_MAIN_LOOP
-	char uart_msg[128] = {0};
-	uint32_t uart_msg_len = 0;
 
-	sprintf(uart_msg, "Pulse Width %05u:%05u:%05u\r\n", (unsigned) rise_ts, (unsigned) fall_ts, (unsigned) delta);
+	HAL_Delay(3000);
+	ReadDHT11(&dht11);
+
+	float rh, temp_C, temp_F;
+	rh = ((float) dht11.rh_int) + ((float) dht11.rh_dec) / 1000.0f;
+	temp_C = ((float) dht11.temp_int) + ((float) dht11.temp_dec) / 1000.0f;
+	temp_F = (temp_C * 1.8f) + 32.0f;
+
+	sprintf(uart_msg, "Relative Humidity: %02.2f%%\r\n", rh);
 	uart_msg_len = strlen(uart_msg);
 	HAL_UART_Transmit(&huart2, (const uint8_t*) uart_msg, uart_msg_len, HAL_TIMEOUT);
 
-	HAL_Delay(200);
+	sprintf(uart_msg, "Temperature: %02.2f C, %02.2f F\r\n\r\n", temp_C, temp_F);
+	uart_msg_len = strlen(uart_msg);
+	HAL_UART_Transmit(&huart2, (const uint8_t*) uart_msg, uart_msg_len, HAL_TIMEOUT);
+
+#ifdef PW_MEASURE_TEST
+#ifdef LOG_IN_MAIN_LOOP
+	sprintf(uart_msg, "Pulse Width %05u:%05u:%05u\r\n", (unsigned) rise_ts, (unsigned) fall_ts, (unsigned) detected_pw);
+	uart_msg_len = strlen(uart_msg);
+	HAL_UART_Transmit(&huart2, (const uint8_t*) uart_msg, uart_msg_len, HAL_TIMEOUT);
 #endif
 #endif
 
