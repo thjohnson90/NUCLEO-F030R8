@@ -39,11 +39,19 @@ extern TIM_HandleTypeDef htim14;
 extern TIM_HandleTypeDef htim15;
 
 /* USER CODE BEGIN Private defines */
-//#define PW_MEASURE_TEST
+#define PW_MEASURE_TEST
 #ifdef PW_MEASURE_TEST
 //#define LOG_IN_IRQ_CALLBACK
-#define LOG_IN_MAIN_LOOP
+//#define LOG_IN_MAIN_LOOP
 #endif
+
+#define SYS_CLK_FREQ            48000000.0f
+#define TIMER_INPUT_CLOCK_FREQ	6000000.0f
+#define TIM6_PRESCALER			3.0f
+#define TIM6_PERIOD				(1.0f / (TIMER_INPUT_CLOCK_FREQ / TIM6_PRESCALER))
+#define TIM14_PRESCALER			600.0f
+#define TIM14_PERIOD			(1.0f / (TIMER_INPUT_CLOCK_FREQ / TIM14_PRESCALER))
+
 /* USER CODE END Private defines */
 
 void MX_TIM6_Init(void);

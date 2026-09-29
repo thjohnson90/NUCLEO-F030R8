@@ -37,6 +37,9 @@ extern UART_HandleTypeDef huart2;
 /* USER CODE BEGIN Private defines */
 #define MAX_UART_MSG_LEN 128
 
+extern uint8_t  usart2_rec_buf[MAX_UART_MSG_LEN];
+extern uint32_t usart2_rec_buf_cnt;
+
 /* USER CODE END Private defines */
 
 void MX_USART2_UART_Init(void);

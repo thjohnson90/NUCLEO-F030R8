@@ -50,14 +50,20 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-const char* msg  = "USART2 Initialized.\r\n";
-const char* msg1 = "USART2 Error.\r\n";
+static char        uart_msg[MAX_UART_MSG_LEN] = {0};
+static char        uart_cmd[MAX_UART_MSG_LEN - 15] = {0};
+static uint32_t    uart_msg_len               = 0;
+static uint32_t    uart_cmd_len               = 0;
+static float       rh                         = 0.0;
+static float       temp_C                     = 0.0;
+static float       temp_F                     = 0.0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-
+static void UpdateLCDDisplay(DHT11_Device* dht, uint16_t lcd_device_addr);
+static void UpdateUARTMessages(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -79,14 +85,11 @@ int main(void)
 
   /* USER CODE BEGIN 1 */
 	HAL_StatusTypeDef ret                        = HAL_ERROR;
-	uint16_t          sz                         = 0;
-	char              lcd_msg[MAX_LCD_MSG_LEN]   = {0};
-	uint32_t          lcd_msg_len                = 0;
-	char              uart_msg[MAX_UART_MSG_LEN] = {0};
-	uint32_t          uart_msg_len               = 0;
 	uint16_t          lcd_device_addr            = 0;
 	uint16_t          idx                        = 0;
 	DHT11_Device      dht11                      = {0};
+	uint32_t          start_tick                 = 0;
+
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -117,18 +120,20 @@ int main(void)
   // start timer
   HAL_TIM_Base_Start(&htim6);
   HAL_TIM_IC_Start_IT(&htim15, TIM_CHANNEL_1);
-  HAL_Delay(5);
 #ifdef PW_MEASURE_TEST
   HAL_TIM_PWM_Start(&htim14, TIM_CHANNEL_1);
 #endif
+  HAL_Delay(5);
   DHT11_Init(&dht11, &htim6);
 
   // introductory message
-  sz = strlen(msg);
-  ret = HAL_UART_Transmit(&huart2, (const uint8_t*) msg, sz, FUNC_TIMEOUT);
+  sprintf(uart_msg, "USART2 Initialized.\r\n");
+  uart_msg_len = strlen(uart_msg);
+  ret = HAL_UART_Transmit(&huart2, (const uint8_t*) uart_msg, uart_msg_len, FUNC_TIMEOUT);
   if (HAL_OK != ret) {
-	  sz = strlen(msg1);
-	  HAL_UART_Transmit(&huart2, (const uint8_t*) msg1, sz, FUNC_TIMEOUT);
+	  sprintf(uart_msg, "USART2 Error.\r\n");
+	  uart_msg_len = strlen(uart_msg);
+	  HAL_UART_Transmit(&huart2, (const uint8_t*) uart_msg, uart_msg_len, FUNC_TIMEOUT);
   }
 
   // search for LCD display
@@ -152,71 +157,41 @@ int main(void)
   if (idx != MAX_I2C_DEVICES) {
 	  // Initialize LCD Display
 	  LCD_Init(&hi2c1, lcd_device_addr);
-
-	  // write data
-	  sprintf(lcd_msg, "Hello!");
-	  lcd_msg_len = strlen(lcd_msg);
-	  LCD_WriteData(&hi2c1, lcd_device_addr, (uint8_t*) lcd_msg, lcd_msg_len);		// line0
   }
 
 //  delay_us(100);
+
+  memset(uart_cmd, 0, sizeof(uart_cmd));
+  uart_cmd_len = 0;
+  HAL_UART_Receive_IT(&huart2, (uint8_t*) uart_msg, 1);
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  HAL_Delay(5000);
+  ReadDHT11(&dht11);
+  start_tick = HAL_GetTick();
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
 
-	HAL_Delay(10000);
-	ReadDHT11(&dht11);
-	LCD_ClearDisplay(&hi2c1, lcd_device_addr);
-
-	float rh, temp_C, temp_F;
-	rh = ((float) dht11.rh_int) + ((float) dht11.rh_dec) / 1000.0f;
-	temp_C = ((float) dht11.temp_int) + ((float) dht11.temp_dec) / 1000.0f;
-	temp_F = (temp_C * 1.8f) + 32.0f;
-
-	sprintf(uart_msg, "Rel Hum: %02.1f%%\r\n", rh);
-	uart_msg_len = strlen(uart_msg);
-	HAL_UART_Transmit(&huart2, (const uint8_t*) uart_msg, uart_msg_len, HAL_TIMEOUT);
-
-	sprintf(lcd_msg, "Rel Humidity: %02.1f%%", rh);
-	lcd_msg_len = strlen(lcd_msg);
-	LCD_WriteData(&hi2c1, lcd_device_addr, (uint8_t*) lcd_msg, lcd_msg_len);
-
-	sprintf(uart_msg, "Temp: %02.2f C, %02.2f F\r\n\r\n", temp_C, temp_F);
-	uart_msg_len = strlen(uart_msg);
-	HAL_UART_Transmit(&huart2, (const uint8_t*) uart_msg, uart_msg_len, HAL_TIMEOUT);
-
-	LCD_SetDDRAMAddr(&hi2c1, lcd_device_addr, LCD_DISP_LINE1_START);
-	sprintf(lcd_msg, "Temperature:");
-	lcd_msg_len = strlen(lcd_msg);
-	LCD_WriteData(&hi2c1, lcd_device_addr, (uint8_t*) lcd_msg, lcd_msg_len);
-
-	LCD_SetDDRAMAddr(&hi2c1, lcd_device_addr, LCD_DISP_LINE2_START);
-	sprintf(lcd_msg, "%02.1f %cC", temp_C, 0xDF);
-	lcd_msg_len = strlen(lcd_msg);
-	LCD_WriteData(&hi2c1, lcd_device_addr, (uint8_t*) lcd_msg, lcd_msg_len);
-
-	LCD_SetDDRAMAddr(&hi2c1, lcd_device_addr, LCD_DISP_LINE3_START);
-	sprintf(lcd_msg, "%02.1f %cF", temp_F, 0xDF);
-	lcd_msg_len = strlen(lcd_msg);
-	LCD_WriteData(&hi2c1, lcd_device_addr, (uint8_t*) lcd_msg, lcd_msg_len);
-
-
-#ifdef PW_MEASURE_TEST
-#ifdef LOG_IN_MAIN_LOOP
-	sprintf(uart_msg, "Pulse Width %05u:%05u:%05u\r\n", (unsigned) rise_ts, (unsigned) fall_ts, (unsigned) detected_pw);
-	uart_msg_len = strlen(uart_msg);
-	HAL_UART_Transmit(&huart2, (const uint8_t*) uart_msg, uart_msg_len, HAL_TIMEOUT);
-#endif
-#endif
-
+	// create a non-blocking delay by reading the system clock
+	if (HAL_GetTick() - start_tick > 5000) {		// 5s elapsed
+		start_tick = HAL_GetTick();
+		UpdateLCDDisplay(&dht11, lcd_device_addr);
+		UpdateUARTMessages();
+	}
   }
+
+  HAL_TIM_Base_Stop(&htim6);
+  HAL_TIM_IC_Stop_IT(&htim15, TIM_CHANNEL_1);
+#ifdef PW_MEASURE_TEST
+  HAL_TIM_PWM_Stop(&htim14, TIM_CHANNEL_1);
+#endif
+
   /* USER CODE END 3 */
 }
 
@@ -252,7 +227,7 @@ void SystemClock_Config(void)
                               |RCC_CLOCKTYPE_PCLK1;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV16;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
   {
@@ -267,6 +242,92 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+void UpdateLCDDisplay(DHT11_Device* dht, uint16_t lcd_device_addr)
+{
+	char     lcd_msg[MAX_LCD_MSG_LEN]   = {0};
+	uint32_t lcd_msg_len                = 0;
+
+	ReadDHT11(dht);
+	LCD_ClearDisplay(&hi2c1, lcd_device_addr);
+
+	rh = ((float) dht->rh_int) + ((float) dht->rh_dec) / 1000.0f;
+	temp_C = ((float) dht->temp_int) + ((float) dht->temp_dec) / 1000.0f;
+	temp_F = (temp_C * 1.8f) + 32.0f;
+
+	HAL_Delay(1);  // required for LCD display to work
+
+	sprintf(lcd_msg, "Rel Humidity: %02.1f%%", rh);
+	lcd_msg_len = strlen(lcd_msg);
+	LCD_WriteData(&hi2c1, lcd_device_addr, (uint8_t*) lcd_msg, lcd_msg_len);
+
+	LCD_SetDDRAMAddr(&hi2c1, lcd_device_addr, LCD_DISP_LINE1_START);
+	sprintf(lcd_msg, "Temperature:");
+	lcd_msg_len = strlen(lcd_msg);
+	LCD_WriteData(&hi2c1, lcd_device_addr, (uint8_t*) lcd_msg, lcd_msg_len);
+
+	LCD_SetDDRAMAddr(&hi2c1, lcd_device_addr, LCD_DISP_LINE2_START);
+	sprintf(lcd_msg, "%02.1f %cC", temp_C, 0xDF);
+	lcd_msg_len = strlen(lcd_msg);
+	LCD_WriteData(&hi2c1, lcd_device_addr, (uint8_t*) lcd_msg, lcd_msg_len);
+
+	LCD_SetDDRAMAddr(&hi2c1, lcd_device_addr, LCD_DISP_LINE3_START);
+	sprintf(lcd_msg, "%02.1f %cF", temp_F, 0xDF);
+	lcd_msg_len = strlen(lcd_msg);
+	LCD_WriteData(&hi2c1, lcd_device_addr, (uint8_t*) lcd_msg, lcd_msg_len);
+}
+
+void UpdateUARTMessages(void)
+{
+#if 0
+	char              uart_msg[MAX_UART_MSG_LEN] = {0};
+	uint32_t          uart_msg_len               = 0;
+	double            period                     = 0.0L;
+
+	sprintf(uart_msg, "Rel Hum: %2.1f%%\r\n", rh);
+	uart_msg_len = strlen(uart_msg);
+	HAL_UART_Transmit(&huart2, (const uint8_t*) uart_msg, uart_msg_len, HAL_TIMEOUT);
+
+	sprintf(uart_msg, "Temp: %02.2f C, %02.2f F\r\n\r\n", temp_C, temp_F);
+	uart_msg_len = strlen(uart_msg);
+	HAL_UART_Transmit(&huart2, (const uint8_t*) uart_msg, uart_msg_len, HAL_TIMEOUT);
+
+	period = 1.0f / TIMER_INPUT_CLOCK_FREQ;
+	sprintf(uart_msg, "Timer Clock Period: %02.16f\r\n", period);
+	uart_msg_len = strlen(uart_msg);
+	HAL_UART_Transmit(&huart2, (const uint8_t*) uart_msg, uart_msg_len, HAL_TIMEOUT);
+#endif
+
+#ifdef PW_MEASURE_TEST
+#ifdef LOG_IN_MAIN_LOOP
+	sprintf(uart_msg, "Pulse Width %05u:%05u:%05u\r\n", (unsigned) rise_ts, (unsigned) fall_ts, (unsigned) detected_pw);
+	uart_msg_len = strlen(uart_msg);
+	HAL_UART_Transmit(&huart2, (const uint8_t*) uart_msg, uart_msg_len, HAL_TIMEOUT);
+#endif
+#endif
+}
+
+// UART2 Receive Callback
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef* huart)
+{
+	if (&huart2 == huart) {
+		if (uart_msg[0] == '\r') {
+			sprintf(uart_msg, "\r\n");
+			uart_msg_len = strlen(uart_msg);
+			HAL_UART_Transmit(huart, (const uint8_t*) uart_msg, uart_msg_len, HAL_TIMEOUT);
+
+			sprintf(uart_msg, "Command: %s\r\n", uart_cmd);
+			uart_msg_len = strlen(uart_msg);
+			HAL_UART_Transmit(huart, (const uint8_t*) uart_msg, uart_msg_len, HAL_TIMEOUT);
+			memset(uart_cmd, 0, sizeof(uart_cmd));
+			uart_cmd_len = 0;
+		} else {
+			HAL_UART_Transmit(huart, (const uint8_t*) uart_msg, 1, HAL_TIMEOUT);
+			uart_cmd[uart_cmd_len] = uart_msg[0];
+			uart_cmd_len++;
+		}
+	}
+	HAL_UART_Receive_IT(huart, (uint8_t*) uart_msg, 1);
+}
 
 /* USER CODE END 4 */
 

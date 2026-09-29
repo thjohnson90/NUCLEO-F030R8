@@ -35,8 +35,6 @@ static inline void SetDHT11GPIOAsOutput(DHT11_Device* dht11)
 
 static inline void DetectNegativeEdge(DHT11_Device* dht11, uint32_t max_delay)
 {
-	// TIM6 ticks at 16MHz
-
 	__HAL_TIM_SET_COUNTER(dht11->timer, 0);
 	while (HAL_GPIO_ReadPin(dht11->port, dht11->gpio_input.Pin) == GPIO_PIN_SET) {
 		if (__HAL_TIM_GET_COUNTER(dht11->timer) > max_delay) {
@@ -47,8 +45,6 @@ static inline void DetectNegativeEdge(DHT11_Device* dht11, uint32_t max_delay)
 
 static inline void DetectPositiveEdge(DHT11_Device* dht11, uint32_t max_delay)
 {
-	// TIM6 ticks at 1MHz
-
 	__HAL_TIM_SET_COUNTER(dht11->timer, 0);
 	while (HAL_GPIO_ReadPin(dht11->port, dht11->gpio_input.Pin) == GPIO_PIN_RESET) {
 		if (__HAL_TIM_GET_COUNTER(dht11->timer) > max_delay) {
@@ -64,7 +60,7 @@ static inline void DetectPulseWidth(DHT11_Device* dht11, uint8_t* data, uint32_t
 
 	// detect the negative edge
 	while (HAL_GPIO_ReadPin(dht11->port, dht11->gpio_input.Pin) == GPIO_PIN_SET) {
-		if ((pulse_width = __HAL_TIM_GET_COUNTER(dht11->timer)) > 2000) {		// data pulse width should be no more than 70us (limit set to 126us)
+		if ((pulse_width = __HAL_TIM_GET_COUNTER(dht11->timer)) > (uint32_t) (0.000126f / TIM6_PERIOD)) {		// data pulse width should be no more than 70us (limit set to 126us)
 			return;
 		}
 	}
@@ -72,14 +68,14 @@ static inline void DetectPulseWidth(DHT11_Device* dht11, uint8_t* data, uint32_t
 	pulse_width -= start_time;
 
 #ifdef DEBUG_DHT11
-	pwf[idx] = (double) pulse_width * (double) 0.063;		// TIM6 ticks at 16MHz
+	pwf[idx] = (double) pulse_width * TIM6_PERIOD;
 #endif
 
 	// record data received
-	if (pulse_width > 238 && pulse_width < 635) {		// '0' indicated by pulse width between 26-28us (limits set at 15us and 40us)
+	if (pulse_width > (uint32_t) (0.000015f / TIM6_PERIOD) && pulse_width < (uint32_t) (0.000040f / TIM6_PERIOD)) {		// '0' indicated by pulse width between 26-28us (limits set at 15us and 40us)
 		// received '0'
 		data[idx] = 0;
-	} else if (pulse_width > 873 && pulse_width < 1270) {	// '1' indicated by pulse width of 70us (limits set at 55us and 80us)
+	} else if (pulse_width > (uint32_t) (0.000055f / TIM6_PERIOD) && pulse_width < (uint32_t) (0.000080f / TIM6_PERIOD)) {	// '1' indicated by pulse width of 70us (limits set at 55us and 80us)
 		// received '1'
 		data[idx] = 1;
 	} else {
@@ -128,7 +124,7 @@ uint32_t ReadDHT11(DHT11_Device* dht11)
 
 	// DHT11 GPIO to input mode and verify data bus is available.
 	SetDHT11GPIOAsInput(dht11);
-	DetectPositiveEdge(dht11, 10000);
+	DetectPositiveEdge(dht11, 10000);		// wait a long time
 
 	// set DHT11 GPIO to output mode
 	SetDHT11GPIOAsOutput(dht11);
@@ -141,22 +137,20 @@ uint32_t ReadDHT11(DHT11_Device* dht11)
 	// disable interrupts
 //	__disable_irq();
 
-	// TIM6 ticks at 16MHz
-
 	// clear counter and wait for 20-40us high response from DHT11
 	SetDHT11GPIOAsInput(dht11);
-	DetectNegativeEdge(dht11, 794);		// set 50us max delay
+	DetectNegativeEdge(dht11, (uint32_t) (0.000050f / TIM6_PERIOD));		// set 50us max delay
 
 	// wait for positive edge - low pulse should be ~80us
-	DetectPositiveEdge(dht11, 1429);		// set 90us max delay
+	DetectPositiveEdge(dht11, (uint32_t) (0.000090f / TIM6_PERIOD));		// set 90us max delay
 
 	// wait for negative edge - high pulse should be ~80us
-	DetectNegativeEdge(dht11, 1429);		// set 90us max delay
+	DetectNegativeEdge(dht11, (uint32_t) (0.000090f / TIM6_PERIOD));		// set 90us max delay
 
 	// DHT11 ready to start transmitting data
 	for (idx = 0; idx < 40; idx++) {	// DHT11 transmits 40 bytes of data
 		// wait for 50us low pulse preceding transmission of one bit of data
-		DetectPositiveEdge(dht11, 952);	// set 60us max delay
+		DetectPositiveEdge(dht11, (uint32_t) (0.000060f / TIM6_PERIOD));	// set 60us max delay
 
 		// get pulse width (to determine data is '1' or '0')
 		DetectPulseWidth(dht11, data, idx);
