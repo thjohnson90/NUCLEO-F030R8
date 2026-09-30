@@ -26,6 +26,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "2004a_i2c_lcd.h"
 #include "dht11.h"
@@ -160,6 +161,10 @@ int main(void)
   }
 
 //  delay_us(100);
+
+  sprintf(uart_msg, "$ ");
+  uart_msg_len = strlen(uart_msg);
+  HAL_UART_Transmit(&huart2, (uint8_t*) uart_msg, uart_msg_len, HAL_TIMEOUT);
 
   memset(uart_cmd, 0, sizeof(uart_cmd));
   uart_cmd_len = 0;
@@ -306,18 +311,43 @@ void UpdateUARTMessages(void)
 #endif
 }
 
+static void ExecuteCommand(UART_HandleTypeDef* huart)
+{
+	char* pch;
+
+	// get command and arguments
+	pch = strchr(uart_cmd, ' ');
+	if (pch != NULL) {
+		int n = (int) (pch - uart_cmd);
+
+		if (strncmp(uart_cmd, "dc", n) == 0) {
+			// adjust duty cycle
+			int dc = atoi(pch + 1);
+
+			__HAL_TIM_SET_COMPARE(&htim14, TIM_CHANNEL_1, dc);
+		} else {
+			sprintf(uart_msg, "Invalid Command\r\n$ ");
+			uart_msg_len = strlen(uart_msg);
+			HAL_UART_Transmit(huart, (const uint8_t*) uart_msg, uart_msg_len, HAL_TIMEOUT);
+		}
+	} else {
+		sprintf(uart_msg, "Invalid Command\r\n$ ");
+		uart_msg_len = strlen(uart_msg);
+		HAL_UART_Transmit(huart, (const uint8_t*) uart_msg, uart_msg_len, HAL_TIMEOUT);
+	}
+}
+
 // UART2 Receive Callback
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef* huart)
 {
 	if (&huart2 == huart) {
 		if (uart_msg[0] == '\r') {
-			sprintf(uart_msg, "\r\n");
+			sprintf(uart_msg, "\r\n$ ");
 			uart_msg_len = strlen(uart_msg);
 			HAL_UART_Transmit(huart, (const uint8_t*) uart_msg, uart_msg_len, HAL_TIMEOUT);
 
-			sprintf(uart_msg, "Command: %s\r\n", uart_cmd);
-			uart_msg_len = strlen(uart_msg);
-			HAL_UART_Transmit(huart, (const uint8_t*) uart_msg, uart_msg_len, HAL_TIMEOUT);
+			ExecuteCommand(huart);
+
 			memset(uart_cmd, 0, sizeof(uart_cmd));
 			uart_cmd_len = 0;
 		} else {
